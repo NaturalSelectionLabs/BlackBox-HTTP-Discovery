@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use axum::{routing::{get, MethodRouter}, Router, Json};
+use axum::extract::ConnectInfo;
 use axum::http::StatusCode;
+use tracing::info;
 use crate::model::{FileConfig, Response};
 use crate::config::CONFIG;
 
@@ -16,7 +19,8 @@ pub fn healthcheck() -> Router {
 }
 
 pub fn root() -> Router {
-    async fn handler() -> (StatusCode, Json<Response>) {
+    async fn handler(ConnectInfo(addr): ConnectInfo<SocketAddr>) -> (StatusCode, Json<Response>) {
+        info!("access from {}", addr);
         let mut resp : Response = Vec::new();
 
         for _endpoint in CONFIG.endpoint.iter() {
