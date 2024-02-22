@@ -14,7 +14,7 @@ FROM alpine as runner
 
 RUN apk --no-cache add ca-certificates
 
-COPY --from=builder /usr/local/cargo/bin/blackbox-http-discovery .
+COPY --from=builder /root/.cargo/bin/blackbox-http-discovery .
 COPY config.yaml .
 
 USER 1000
