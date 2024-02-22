@@ -16,7 +16,7 @@ FROM debian:buster-slim as runner
 
 RUN apt update; apt install -y libssl1.1
 
-COPY --from=builder /usr/local/target/release/blackbox-http-discovery .
+COPY --from=builder /usr/local/cargo/bin/blackbox-http-discovery .
 COPY config.yaml .
 
 USER 1000
