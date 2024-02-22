@@ -6,6 +6,8 @@ on:
       - prod
     tags:
       - v*
+    paths-ignore:
+      - "deploy/**"
 jobs:
   build:
     uses: NaturalSelectionLabs/Daedalus/.github/workflows/docker-tpl.yaml@main
