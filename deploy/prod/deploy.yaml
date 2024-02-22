@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackbox-http-discovery
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: blackbox-http-discovery
+  template:
+    metadata:
+      labels:
+        app: blackbox-http-discovery
+    spec:
+#      serviceAccountName: httpbin
+      containers:
+        - image: rss3/blackbox-hd
+          imagePullPolicy: IfNotPresent
+          name: server
+          args:
+            - --config
+            - /etc/blackbox-hd/config.yaml
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: '0.1'
+              memory: 64Mi
+            limits:
+              cpu: '0.5'
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /etc/blackbox-hd
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: blackbox-http-discovery

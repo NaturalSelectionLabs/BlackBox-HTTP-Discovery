@@ -14,3 +14,16 @@ jobs:
       context: .
       dockerfile: ./Dockerfile
     secrets: inherit
+  deploy-prod:
+    uses: NaturalSelectionLabs/Daedalus/.github/workflows/deploy-v3-tpl.yaml@main
+    needs:
+      - build
+    with:
+      images: rss3/blackbox-hd
+      tag: sha-${{ github.sha }}
+      cluster: prod
+      namespace: guardian
+      releaseName: blackbox-http-discovery
+      revision: main
+      dir: deploy/prod
+    secrets: inherit
