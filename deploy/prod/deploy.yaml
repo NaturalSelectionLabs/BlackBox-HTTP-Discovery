@@ -22,6 +22,23 @@ spec:
             - /etc/blackbox-hd/config.yaml
           ports:
             - containerPort: 8000
+          livenessProbe:
+            httpGet:
+              port: 8000
+              path: /healthcheck
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              port: 8000
+              path: /healthcheck
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
           resources:
             requests:
               cpu: '0.1'
