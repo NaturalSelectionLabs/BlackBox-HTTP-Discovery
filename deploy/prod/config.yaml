@@ -20,6 +20,8 @@ target:
   - module: http_2xx
     url: https://crossbell.io
   - module: http_2xx
+    url: https://faucet.crossbell.io
+  - module: http_2xx
     url: https://indexer.crossbell.io/v1/characters/30
   - module: http_2xx
     url: https://rpc.crossbell.io
