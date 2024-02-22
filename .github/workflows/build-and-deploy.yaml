@@ -1,0 +1,16 @@
+name: Build and Deploy blackbox-hd Workflow
+on:
+  push:
+    branches:
+      - main
+      - prod
+    tags:
+      - v*
+jobs:
+  build:
+    uses: NaturalSelectionLabs/Daedalus/.github/workflows/docker-tpl.yaml@main
+    with:
+      images: rss3/blackbox-hd
+      context: .
+      dockerfile: ./Dockerfile
+    secrets: inherit

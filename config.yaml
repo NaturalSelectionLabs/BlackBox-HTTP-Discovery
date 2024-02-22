@@ -1,0 +1,12 @@
+endpoint:
+  - address: asia-east2-naturalselectionlabs.cloudfunctions.net:443
+    geohash: 85bnbn0p2j8p8
+    name: HongKong
+  - address: europe-west1-naturalselectionlabs.cloudfunctions.net:443
+    geohash: u0gvph1m9bbqh
+    name: Belgium
+target:
+  - module: http_2xx
+    url: https://rss3.io
+  - module: http_2xx
+    url: https://crossbell.io
