@@ -1,4 +1,4 @@
-FROM messense/rust-musl-cross as builder
+FROM messense/rust-musl-cross:x86_64-musl as builder
 
 WORKDIR /usr/src
 
