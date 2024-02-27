@@ -39,3 +39,5 @@ target:
     url: https://rpc.testnet.rss3.io/
   - module: http_2xx
     url: https://scan.testnet.rss3.io/api?module=block&action=eth_block_number
+  - module: http_2xx
+    url: https://rsshub.app
