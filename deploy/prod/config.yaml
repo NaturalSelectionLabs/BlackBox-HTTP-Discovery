@@ -41,3 +41,5 @@ target:
     url: https://scan.testnet.rss3.io/api?module=block&action=eth_block_number
   - module: http_2xx
     url: https://rsshub.app
+  - module: http_2xx
+    url: https://etherface.rss3.io/v1/signatures/hash/all/70a08231/1
