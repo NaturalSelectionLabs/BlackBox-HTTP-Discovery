@@ -35,8 +35,8 @@ target:
     url: https://ipfs-relay.crossbell.io/
   - module: http_2xx
     url: https://testnet.rss3.io/data/accounts/vitalik.eth/activities?limit=1&tag=social
-  - module: http_2xx
-    url: https://rpc.testnet.rss3.io/
+  # - module: http_2xx
+  #   url: https://rpc.testnet.rss3.io/
   - module: http_2xx
     url: https://scan.testnet.rss3.io/api?module=block&action=eth_block_number
   - module: http_2xx
