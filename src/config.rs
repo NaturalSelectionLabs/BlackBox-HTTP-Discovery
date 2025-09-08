@@ -20,9 +20,11 @@ pub struct Target {
 }
 
 fn default_labels() -> HashMap<String, String> {
-    let mut labels = HashMap::new();
-    labels.insert("default".to_string(), "true".to_string());
-    labels
+    HashMap::from([
+        ("blackbox/project".to_string(), "default".to_string()),
+        ("blackbox/env".to_string(), "default".to_string()),
+        ("blackbox/instance".to_string(), "default".to_string()),
+    ])
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
