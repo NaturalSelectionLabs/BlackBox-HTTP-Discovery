@@ -23,4 +23,4 @@ COPY config.yaml .
 
 USER 1000
 
-CMD ["/bin/server"]
+ENTRYPOINT ["/bin/server"]
