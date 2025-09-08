@@ -1,20 +1,20 @@
-FROM messense/rust-musl-cross:x86_64-musl as builder
+ARG RUST_VERSION=1.89.0
+FROM rust:${RUST_VERSION}-slim-bullseye AS builder
 
-WORKDIR /usr/src
+WORKDIR /app
 
-COPY Cargo.toml Cargo.lock ./
-COPY src ./src
+RUN --mount=type=bind,source=src,target=src \
+    --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
+    --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
+    --mount=type=cache,target=/app/target/ \
+    --mount=type=cache,target=/usr/local/cargo/registry/ \
+    cargo build --release
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/src/target \
-    cargo install --path .
+FROM debian:bullseye-slim
 
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-FROM alpine as runner
-
-RUN apk --no-cache add ca-certificates
-
-COPY --from=builder /root/.cargo/bin/blackbox-http-discovery .
+COPY --from=builder /app/target/release/blackbox-http-discovery /bin/blackbox-http-discovery
 COPY config.yaml .
 
 USER 1000
