@@ -18,7 +18,7 @@ FROM debian:bullseye-slim
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /bin/server /bin/
+COPY --from=builder /bin/server /bin/
 COPY config.yaml .
 
 USER 1000
