@@ -1,5 +1,6 @@
 use clap::Parser;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
@@ -14,12 +15,14 @@ pub struct Config {
 pub struct Target {
     pub module: String,
     pub url: String,
-    #[serde(default = "default_tags")]
-    pub tags: Vec<String>,
+    #[serde(default = "default_labels")]
+    pub labels: HashMap<String, String>,
 }
 
-fn default_tags() -> Vec<String> {
-    vec!["default".to_string()]
+fn default_labels() -> HashMap<String, String> {
+    let mut labels = HashMap::new();
+    labels.insert("default".to_string(), "true".to_string());
+    labels
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -35,8 +38,8 @@ impl fmt::Display for Config {
         for target in &self.target {
             writeln!(
                 f,
-                "  Module: {}, URL: {}, Tags: {:?}",
-                target.module, target.url, target.tags
+                "  Module: {}, URL: {}, Labels: {:?}",
+                target.module, target.url, target.labels
             )?;
         }
 

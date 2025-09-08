@@ -8,43 +8,27 @@ use std::collections::HashMap;
 const ENDPOINT_URL: &str = "__endpoint__url";
 const ENDPOINT_NAME: &str = "__endpoint__name";
 const ENDPOINT_GEOHASH: &str = "__endpoint__geohash";
-const TARGET_TAG: &str = "__target_tag";
 
 async fn handler(State(config): State<Config>) -> (StatusCode, Json<Response>) {
-    // Group targets by tags
-    // Map: tag -> list of targets
-    let grouped_targets: HashMap<String, Vec<String>> = config
-        .target
-        .iter()
-        .map(|target| {
-            target
-                .tags
-                .iter()
-                .map(|tag| (tag.clone(), target.url.clone()))
-                .collect::<Vec<(String, String)>>()
-        })
-        .flatten()
-        .fold(HashMap::new(), |mut acc, (tag, url)| {
-            acc.entry(tag).or_insert_with(Vec::new).push(url);
-            acc
-        });
-
-    // generate config for each endpoint and tag combination
+    // Generate config for each target and endpoint combination
     let resp: Vec<FileConfig> = config
         .endpoint
         .iter()
-        .map(|endpoint| {
-            grouped_targets.iter().map(|(tag, targets)| FileConfig {
-                targets: targets.clone(),
-                labels: HashMap::from([
+        .flat_map(|endpoint| {
+            config.target.iter().map(|target| {
+                let mut labels = HashMap::from([
                     (ENDPOINT_URL.to_string(), endpoint.address.clone()),
                     (ENDPOINT_NAME.to_string(), endpoint.name.clone()),
                     (ENDPOINT_GEOHASH.to_string(), endpoint.geohash.clone()),
-                    (TARGET_TAG.to_string(), tag.clone()),
-                ]),
+                ]);
+                labels.extend(target.labels.clone());
+
+                FileConfig {
+                    targets: vec![target.url.clone()],
+                    labels,
+                }
             })
         })
-        .flatten()
         .collect();
 
     (StatusCode::OK, Json(resp))
@@ -66,22 +50,33 @@ mod tests {
 
     // 创建测试用的模拟配置
     fn create_test_config() -> crate::config::Config {
+        use std::collections::HashMap;
+
         crate::config::Config {
             target: vec![
                 crate::config::Target {
                     module: "http_2xx".to_string(),
                     url: "https://example1.com".to_string(),
-                    tags: vec!["web".to_string(), "api".to_string()],
+                    labels: HashMap::from([
+                        ("type".to_string(), "web".to_string()),
+                        ("env".to_string(), "prod".to_string()),
+                    ]),
                 },
                 crate::config::Target {
                     module: "http_2xx".to_string(),
                     url: "https://example2.com".to_string(),
-                    tags: vec!["web".to_string()],
+                    labels: HashMap::from([
+                        ("type".to_string(), "web".to_string()),
+                        ("env".to_string(), "staging".to_string()),
+                    ]),
                 },
                 crate::config::Target {
                     module: "http_2xx".to_string(),
                     url: "https://api.example.com".to_string(),
-                    tags: vec!["api".to_string()],
+                    labels: HashMap::from([
+                        ("type".to_string(), "api".to_string()),
+                        ("env".to_string(), "prod".to_string()),
+                    ]),
                 },
             ],
             endpoint: vec![
@@ -139,7 +134,8 @@ mod tests {
             assert!(config.labels.contains_key(ENDPOINT_URL));
             assert!(config.labels.contains_key(ENDPOINT_NAME));
             assert!(config.labels.contains_key(ENDPOINT_GEOHASH));
-            assert!(config.labels.contains_key(TARGET_TAG));
+            // 验证有 target 的 labels
+            assert!(config.labels.contains_key("type"));
             assert!(!config.targets.is_empty());
         }
     }
@@ -158,23 +154,23 @@ mod tests {
         // 验证响应结构
         assert!(!json_response.is_empty());
 
-        // 验证标签分组逻辑
+        // 验证标签逻辑
         let web_configs: Vec<_> = json_response
             .iter()
-            .filter(|config| config.labels.get(TARGET_TAG) == Some(&"web".to_string()))
+            .filter(|config| config.labels.get("type") == Some(&"web".to_string()))
             .collect();
         let api_configs: Vec<_> = json_response
             .iter()
-            .filter(|config| config.labels.get(TARGET_TAG) == Some(&"api".to_string()))
+            .filter(|config| config.labels.get("type") == Some(&"api".to_string()))
             .collect();
 
-        // web tag 应该包含 2 个 targets (example1.com 和 example2.com)
-        assert_eq!(web_configs.len(), 2); // 2 endpoints * 1 web tag group
-        assert!(web_configs.iter().any(|config| config.targets.len() == 2));
+        // web type 应该有 4 个配置 (2 endpoints * 2 web targets)
+        assert_eq!(web_configs.len(), 4); // 2 endpoints * 2 web targets
+        assert!(web_configs.iter().all(|config| config.targets.len() == 1));
 
-        // api tag 应该包含 2 个 targets (example1.com 和 api.example.com)
-        assert_eq!(api_configs.len(), 2); // 2 endpoints * 1 api tag group
-        assert!(api_configs.iter().any(|config| config.targets.len() == 2));
+        // api type 应该有 2 个配置 (2 endpoints * 1 api target)
+        assert_eq!(api_configs.len(), 2); // 2 endpoints * 1 api target
+        assert!(api_configs.iter().all(|config| config.targets.len() == 1));
     }
 
     #[tokio::test]
@@ -186,7 +182,10 @@ mod tests {
         test_config.target.push(crate::config::Target {
             module: "http_2xx".to_string(),
             url: "https://test3.com".to_string(),
-            tags: vec!["monitoring".to_string()],
+            labels: HashMap::from([
+                ("type".to_string(), "monitoring".to_string()),
+                ("env".to_string(), "prod".to_string()),
+            ]),
         });
 
         test_config.endpoint.push(crate::config::Endpoint {
@@ -206,13 +205,13 @@ mod tests {
         // 验证有监控标签的配置
         let monitoring_configs: Vec<_> = json_response
             .iter()
-            .filter(|config| config.labels.get(TARGET_TAG) == Some(&"monitoring".to_string()))
+            .filter(|config| config.labels.get("type") == Some(&"monitoring".to_string()))
             .collect();
 
-        assert_eq!(monitoring_configs.len(), 3); // 3 endpoints * 1 monitoring tag group
+        assert_eq!(monitoring_configs.len(), 3); // 3 endpoints * 1 monitoring target
         assert!(monitoring_configs
             .iter()
-            .any(|config| config.targets.len() == 1));
+            .all(|config| config.targets.len() == 1));
     }
 
     #[tokio::test]
@@ -235,16 +234,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_single_target_multiple_tags() {
-        // 测试单个 target 有多个 tags 的情况
+        // 测试单个 target 有多个 labels 的情况
         let config = crate::config::Config {
             target: vec![crate::config::Target {
                 module: "http_2xx".to_string(),
                 url: "https://multi-tag.com".to_string(),
-                tags: vec![
-                    "web".to_string(),
-                    "api".to_string(),
-                    "monitoring".to_string(),
-                ],
+                labels: HashMap::from([
+                    ("type".to_string(), "web".to_string()),
+                    ("env".to_string(), "prod".to_string()),
+                    ("service".to_string(), "api".to_string()),
+                ]),
             }],
             endpoint: vec![crate::config::Endpoint {
                 address: "test.example.com:443".to_string(),
@@ -261,43 +260,55 @@ mod tests {
 
         let json_response: Response = response.json();
 
-        // 应该有 3 个配置项（每个 tag 一个）
-        assert_eq!(json_response.len(), 3);
+        // 应该有 1 个配置项（1 endpoint * 1 target）
+        assert_eq!(json_response.len(), 1);
 
-        // 验证每个配置项都包含相同的 target
-        for config in &json_response {
-            assert_eq!(config.targets.len(), 1);
-            assert_eq!(config.targets[0], "https://multi-tag.com");
-        }
+        // 验证配置项包含 target 和所有 labels
+        let config = &json_response[0];
+        assert_eq!(config.targets.len(), 1);
+        assert_eq!(config.targets[0], "https://multi-tag.com");
+        assert_eq!(config.labels.get("type"), Some(&"web".to_string()));
+        assert_eq!(config.labels.get("env"), Some(&"prod".to_string()));
+        assert_eq!(config.labels.get("service"), Some(&"api".to_string()));
     }
 
     #[test]
-    fn test_target_grouping_logic() {
+    fn test_target_processing_logic() {
         let test_config = create_test_config();
-        let mut grouped_targets: HashMap<String, Vec<String>> = HashMap::new();
 
-        // 测试分组逻辑
-        for target in test_config.target.iter() {
-            for tag in &target.tags {
-                grouped_targets
-                    .entry(tag.clone())
-                    .or_default()
-                    .push(target.url.clone());
+        // 测试处理逻辑：每个 target 和 endpoint 组合生成一个 FileConfig
+        let mut file_configs = Vec::new();
+
+        for endpoint in &test_config.endpoint {
+            for target in &test_config.target {
+                let mut labels = HashMap::from([
+                    (ENDPOINT_URL.to_string(), endpoint.address.clone()),
+                    (ENDPOINT_NAME.to_string(), endpoint.name.clone()),
+                    (ENDPOINT_GEOHASH.to_string(), endpoint.geohash.clone()),
+                ]);
+
+                for (key, value) in &target.labels {
+                    labels.insert(key.clone(), value.clone());
+                }
+
+                file_configs.push(FileConfig {
+                    targets: vec![target.url.clone()],
+                    labels,
+                });
             }
         }
 
-        // 验证分组结果
-        assert_eq!(grouped_targets.len(), 2); // web 和 api 两个标签
+        // 验证处理结果 - 应该有 6 个配置 (2 endpoints * 3 targets)
+        assert_eq!(file_configs.len(), 6);
 
-        let web_targets = grouped_targets.get("web").unwrap();
-        assert_eq!(web_targets.len(), 2);
-        assert!(web_targets.contains(&"https://example1.com".to_string()));
-        assert!(web_targets.contains(&"https://example2.com".to_string()));
-
-        let api_targets = grouped_targets.get("api").unwrap();
-        assert_eq!(api_targets.len(), 2);
-        assert!(api_targets.contains(&"https://example1.com".to_string()));
-        assert!(api_targets.contains(&"https://api.example.com".to_string()));
+        // 验证每个配置都包含正确的 target 和 labels
+        for config in &file_configs {
+            assert_eq!(config.targets.len(), 1); // 每个配置只有一个 target
+            assert!(config.labels.contains_key(ENDPOINT_URL));
+            assert!(config.labels.contains_key(ENDPOINT_NAME));
+            assert!(config.labels.contains_key(ENDPOINT_GEOHASH));
+            assert!(config.labels.contains_key("type")); // target 的 label
+        }
     }
 
     #[test]
@@ -310,20 +321,18 @@ mod tests {
         labels.insert(ENDPOINT_URL.to_string(), "test.example.com:443".to_string());
         labels.insert(ENDPOINT_NAME.to_string(), "TestEndpoint".to_string());
         labels.insert(ENDPOINT_GEOHASH.to_string(), "test_hash".to_string());
-        labels.insert(TARGET_TAG.to_string(), "test_tag".to_string());
+        labels.insert("type".to_string(), "web".to_string());
+        labels.insert("env".to_string(), "prod".to_string());
 
         let file_config = FileConfig { targets, labels };
 
         assert_eq!(file_config.targets.len(), 2);
-        assert_eq!(file_config.labels.len(), 4);
+        assert_eq!(file_config.labels.len(), 5);
         assert_eq!(
             file_config.labels.get(ENDPOINT_NAME),
             Some(&"TestEndpoint".to_string())
         );
-        assert_eq!(
-            file_config.labels.get(TARGET_TAG),
-            Some(&"test_tag".to_string())
-        );
+        assert_eq!(file_config.labels.get("type"), Some(&"web".to_string()));
     }
 
     #[tokio::test]
