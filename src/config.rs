@@ -1,23 +1,28 @@
-use std::fmt;
-use clap::{arg, command, ArgAction};
-use lazy_static::lazy_static;
+use clap::Parser;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     pub target: Vec<Target>,
     pub endpoint: Vec<Endpoint>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Target {
     pub module: String,
     pub url: String,
+    #[serde(default = "default_tags")]
+    pub tags: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+fn default_tags() -> Vec<String> {
+    vec!["default".to_string()]
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Endpoint {
     pub address: String,
     pub geohash: String,
@@ -26,16 +31,20 @@ pub struct Endpoint {
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Targets:\n")?;
+        writeln!(f, "Targets:")?;
         for target in &self.target {
-            write!(f, "  Module: {}, URL: {}\n", target.module, target.url)?;
+            writeln!(
+                f,
+                "  Module: {}, URL: {}, Tags: {:?}",
+                target.module, target.url, target.tags
+            )?;
         }
 
-        write!(f, "Endpoints:\n")?;
+        writeln!(f, "Endpoints:")?;
         for endpoint in &self.endpoint {
-            write!(
+            writeln!(
                 f,
-                "  Name: {}, Address: {}, Geohash: {}\n",
+                "  Name: {}, Address: {}, Geohash: {}",
                 endpoint.name, endpoint.address, endpoint.geohash
             )?;
         }
@@ -44,21 +53,18 @@ impl fmt::Display for Config {
     }
 }
 
-lazy_static! {
-    pub static ref CONFIG: Config = {
-        let matches = command!("server")
-            .arg(
-                arg!(--config)
-                    .long("config")
-                    .short('c')
-                    .action(ArgAction::Set)
-                    .default_value("config.yaml"),
-            )
-            .get_matches();
+#[derive(Parser, Debug, Clone)]
+#[command(author, version, about, long_about = None)]
+#[command(next_line_help = true)]
+pub struct Args {
+    #[arg(short, long)]
+    config: String,
+}
 
-        let config_file = matches.get_one::<String>("config").expect("required");
-        load(config_file).expect(&*format!("load file {} error", config_file))
-    };
+impl Args {
+    pub fn load_config(&self) -> Result<Config, Box<dyn std::error::Error>> {
+        load(&self.config)
+    }
 }
 
 fn load(file_path: &str) -> Result<Config, Box<dyn std::error::Error>> {

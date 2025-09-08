@@ -1,16 +1,10 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-
-// the input to our `create_user` handler
-#[derive(Deserialize)]
-pub struct CreateUser {
-    pub username: String,
-}
+use std::collections::HashMap;
 
 pub type Response = Vec<FileConfig>;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct FileConfig {
     pub targets: Vec<String>,
-    pub labels: HashMap<String,String>,
+    pub labels: HashMap<String, String>,
 }

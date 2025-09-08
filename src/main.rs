@@ -9,9 +9,11 @@ use axum::{
     response::Response,
     Router,
 };
-use router::{healthcheck, root};
+use clap::Parser;
+use router::routes;
 use std::net::SocketAddr;
 use std::time::Duration;
+use tokio::signal;
 use tower_http::{classify::ServerErrorsFailureClass, trace::TraceLayer};
 use tracing::{info_span, Span};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -19,6 +21,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[tokio::main]
 async fn main() {
     // initialize tracing
+    config::Args::parse();
+    let args = config::Args::parse();
+    let config = args.load_config().expect("load config error");
 
     tracing_subscriber::registry()
         .with(
@@ -29,7 +34,7 @@ async fn main() {
         .init();
 
     // build our application with a route
-    let app = Router::new().merge(root()).merge(healthcheck()).layer(
+    let app = Router::new().merge(routes()).with_state(config).layer(
         TraceLayer::new_for_http()
             .make_span_with(|request: &Request<_>| {
                 // Log the matched route's path (with placeholders not filled in).
@@ -75,6 +80,31 @@ async fn main() {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(shutdown_signal())
     .await
     .unwrap();
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
