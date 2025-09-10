@@ -2,8 +2,6 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
-use std::fs::File;
-use std::io::Read;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
@@ -73,11 +71,7 @@ impl Args {
 }
 
 fn load(file_path: &str) -> Result<Config, Box<dyn std::error::Error>> {
-    let mut f = File::open(file_path)?;
-
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)?;
-
+    let contents = std::fs::read_to_string(file_path)?;
     let config: Config = serde_yaml::from_str(&contents)?;
 
     Ok(config)

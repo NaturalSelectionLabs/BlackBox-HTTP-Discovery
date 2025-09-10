@@ -21,7 +21,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[tokio::main]
 async fn main() {
     // initialize tracing
-    config::Args::parse();
     let args = config::Args::parse();
     let config = args.load_config().expect("load config error");
 
@@ -74,8 +73,15 @@ async fn main() {
             ),
     );
 
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    let port = std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8000);
+
+    // run our app with hyper, listening globally on port 8000
+    let listener = tokio::net::TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], port)))
+        .await
+        .unwrap();
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
